@@ -29,28 +29,44 @@ final class AppState: ObservableObject {
     var canSync: Bool { csvURL != nil && !isRunning && coreAvailable }
 
     func refreshEnvironment() {
+        rekordboxProcesses = RekordboxProbe.runningProcesses()
         guard CoreRunner.locateExecutable() != nil else {
             coreAvailable = false
             errorMessage = "The bundled spectro-rb core could not be found."
             return
         }
         coreAvailable = true
-        do {
-            let report = try runner.doctor()
-            coreVersion = report.version
-            detectedDatabase = report.databases.first
-            rekordboxProcesses = report.rekordboxProcesses
-            backups = report.backups
-            if report.databases.isEmpty {
-                errorMessage = "No Rekordbox database found. Choose one manually."
+        Task.detached(priority: .utility) {
+            do {
+                let report = try CoreRunner.doctor()
+                await MainActor.run {
+                    self.coreVersion = report.version
+                    self.detectedDatabase = report.databases.first
+                    self.backups = report.backups
+                    if report.databases.isEmpty {
+                        self.errorMessage = "No Rekordbox database found. Choose one manually."
+                    }
+                }
+            } catch {
+                await MainActor.run { self.errorMessage = error.localizedDescription }
             }
-        } catch {
-            errorMessage = error.localizedDescription
         }
     }
 
     func run(dryRun: Bool) {
         guard let csv = csvURL else { return }
+
+        // Checked at the moment of the click, so opening Rekordbox after the app
+        // started still blocks. The core re-checks again before writing.
+        rekordboxProcesses = RekordboxProbe.runningProcesses()
+        if rekordboxIsRunning {
+            errorMessage =
+                "Rekordbox is running (\(rekordboxProcesses.joined(separator: ", "))). "
+                + "Quit it completely and try again — nothing was read or written."
+            statusLine = "Blocked."
+            result = nil
+            return
+        }
         isRunning = true
         errorMessage = nil
         result = nil

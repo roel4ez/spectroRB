@@ -98,6 +98,15 @@ def _render_result(result: SyncResult, show_changes: int) -> None:
         if len(plan.pending) > show_changes:
             console.print(f" [dim]… and {len(plan.pending) - show_changes:,} more[/dim]")
 
+    if show_changes and plan.unmatched:
+        console.print()
+        console.print("[yellow]Not found in Rekordbox[/yellow] (left untouched):")
+        for row in plan.unmatched[:show_changes]:
+            icon, _ = VERDICT_STYLE[row.verdict]
+            console.print(f" {icon} [dim]{row.path}[/dim]")
+        if len(plan.unmatched) > show_changes:
+            console.print(f" [dim]… and {len(plan.unmatched) - show_changes:,} more[/dim]")
+
     console.print()
     console.print("[dim]Dry run — nothing was written.[/dim]" if result.dry_run else "Done.")
     console.print()
@@ -125,6 +134,9 @@ def sync_command(
     json_changes: int = typer.Option(
         2000, "--json-changes", help="Max number of changes included in the JSON result."
     ),
+    report: Optional[Path] = typer.Option(
+        None, "--report", help="Write unmatched/ambiguous/unreadable CSV rows to this CSV file."
+    ),
 ) -> None:
     """Sync colours from a Spectro CSV export into Rekordbox."""
     emitter = JsonEmitter(json_output)
@@ -149,8 +161,16 @@ def sync_command(
         emitter("error", {"kind": "rekordbox", "message": str(exc)})
         _fail(str(exc), code=5)
 
+    report_path: Path | None = None
+    if report is not None:
+        from .report import write_report
+
+        report_path = write_report(result.plan, report)
+        emitter("report_written", {"path": str(report_path)})
+
     if json_output:
         payload = result.as_dict()
+        payload["report"] = str(report_path) if report_path else None
         payload["changes"] = [c.as_dict() for c in result.plan.pending[:json_changes]]
         payload["unmatched"] = [
             {"path": r.path, "filename": r.filename, "verdict": r.verdict.value}
@@ -159,6 +179,9 @@ def sync_command(
         emitter("result", payload)
     else:
         _render_result(result, show_changes=show)
+        if report_path:
+            console.print(f"Report: [dim]{report_path}[/dim]")
+            console.print()
 
 
 @app.command("doctor")

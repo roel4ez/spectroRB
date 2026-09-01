@@ -34,6 +34,7 @@ Dry run — nothing was written.
 | Colour only | The engine assigns exactly one field, `ColorID`; nothing else is ever set |
 | Preview first | `--dry-run` (CLI) and **Dry run** (app) analyse and report without opening a write transaction |
 | No silent mismatches | Fuzzy matches are dropped when a filename is ambiguous, and reported as unmatched |
+| Rekordbox can't sneak in | The check runs when you press Sync, not when the app opens, and the core re-checks again before writing |
 
 ## Colour mapping
 
@@ -44,6 +45,12 @@ Dry run — nothing was written.
 | 🔴 `FAKE` | Red |
 
 Tracks with no row in the CSV are left completely untouched.
+
+## Files the CSV has but Rekordbox doesn't
+
+They are never guessed at. They're counted in the summary, listed under **Not found in Rekordbox**
+in the app (exportable to CSV), printed by `--show N`, and written in full by `--report PATH`.
+Same for filenames too ambiguous to match safely.
 
 ## Matching
 
@@ -87,7 +94,8 @@ python3 -m venv .venv && .venv/bin/pip install -e .
 | `--dry-run`, `-n` | Analyse only; write nothing |
 | `--no-backup` | Skip the backup (not recommended) |
 | `--json` | Newline-delimited JSON events on stdout |
-| `--show N` | Print the first N planned changes |
+| `--show N` | Print the first N planned changes, and the files Rekordbox doesn't have |
+| `--report PATH` | Write every unmatched / ambiguous / unreadable CSV row to a CSV file |
 
 Exit codes: `2` bad CSV, `3` no database found, `4` Rekordbox is running, `5` database error.
 

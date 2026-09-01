@@ -75,3 +75,101 @@ def test_read_csv_rejects_foreign_files(tmp_path: Path):
     csv_file.write_text("a,b\n1,2\n", encoding="utf-8")
     with pytest.raises(InvalidSpectroCsv):
         read_spectro_csv(csv_file)
+
+
+class FakeArtist:
+    def __init__(self, name):
+        self.Name = name
+
+
+class FullTrack:
+    def __init__(self, ident, path, color="0", title="", artist="A"):
+        self.ID = ident
+        self.FolderPath = path
+        self.ColorID = color
+        self.Title = title
+        self.Artist = FakeArtist(artist)
+
+
+class FakeCollection:
+    def __init__(self, tracks):
+        self._tracks = tracks
+        self.committed = False
+
+    def tracks(self):
+        return self._tracks
+
+    def commit(self):
+        self.committed = True
+
+    def rollback(self):
+        pass
+
+
+def _export(tmp_path: Path, rows: str):
+    csv_file = tmp_path / "e.csv"
+    csv_file.write_text("filename,path,verdict\n" + rows, encoding="utf-8")
+    return read_spectro_csv(csv_file)
+
+
+def test_plan_reports_rows_missing_from_collection(tmp_path: Path):
+    from spectro_rb.sync import build_plan
+
+    export = _export(
+        tmp_path,
+        '"a.mp3","/M/a.mp3","FAKE"\n'
+        '"ghost.mp3","/M/ghost.mp3","MEDIUM"\n'
+        '"dup.mp3","/Z/dup.mp3","LOSSLESS"\n',
+    )
+    collection = FakeCollection(
+        [
+            FullTrack("1", "/M/a.mp3"),
+            FullTrack("2", "/X/dup.mp3"),
+            FullTrack("3", "/Y/dup.mp3"),
+        ]
+    )
+    plan = build_plan(export, collection)
+
+    assert [c.content_id for c in plan.changes] == ["1"]
+    assert [r.path for r in plan.unmatched] == ["/M/ghost.mp3"]
+    assert [r.path for r in plan.ambiguous] == ["/Z/dup.mp3"]
+    assert plan.summary()["unmatched"] == 1
+    assert plan.summary()["ambiguous"] == 1
+
+
+def test_apply_only_touches_color(tmp_path: Path):
+    from spectro_rb.sync import apply_plan, build_plan
+
+    export = _export(tmp_path, '"a.mp3","/M/a.mp3","FAKE"\n')
+    track = FullTrack("1", "/M/a.mp3", color="1", title="T")
+    collection = FakeCollection([track])
+    plan = build_plan(export, collection)
+
+    assert apply_plan(plan, collection) == 1
+    assert track.ColorID == "2"  # Red
+    assert track.Title == "T" and track.FolderPath == "/M/a.mp3"
+    assert collection.committed
+
+
+def test_worst_verdict_wins_for_duplicate_rows(tmp_path: Path):
+    from spectro_rb.sync import build_plan
+
+    export = _export(
+        tmp_path, '"a.mp3","/M/a.mp3","LOSSLESS"\n"a.mp3","/M/a.mp3","FAKE"\n'
+    )
+    collection = FakeCollection([FullTrack("1", "/M/a.mp3")])
+    plan = build_plan(export, collection)
+    assert len(plan.changes) == 1
+    assert plan.changes[0].verdict is Verdict.FAKE
+
+
+def test_report_lists_every_problem_row(tmp_path: Path):
+    from spectro_rb.report import write_report
+    from spectro_rb.sync import build_plan
+
+    export = _export(tmp_path, '"g.mp3","/M/g.mp3","FAKE"\n"b.mp3","","MEDIUM"\n')
+    plan = build_plan(export, FakeCollection([FullTrack("1", "/M/other.mp3")]))
+    out = write_report(plan, tmp_path / "r.csv")
+    text = out.read_text(encoding="utf-8")
+    assert "not in collection" in text and "/M/g.mp3" in text
+    assert "unreadable row" in text

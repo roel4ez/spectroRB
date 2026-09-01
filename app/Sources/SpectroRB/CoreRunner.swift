@@ -43,7 +43,7 @@ final class CoreRunner {
         process = nil
     }
 
-    func doctor() throws -> DoctorReport {
+    static func doctor() throws -> DoctorReport {
         guard let executable = Self.locateExecutable() else { throw RunnerError.executableMissing }
         let process = Process()
         process.executableURL = executable

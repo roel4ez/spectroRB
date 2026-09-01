@@ -4,6 +4,12 @@ import UniformTypeIdentifiers
 
 struct ContentView: View {
     @EnvironmentObject private var state: AppState
+    @State private var resultsTab: ResultsTab = .changes
+
+    private enum ResultsTab: String, CaseIterable {
+        case changes = "Changes"
+        case unmatched = "Not found in Rekordbox"
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
@@ -140,7 +146,7 @@ struct ContentView: View {
                     .disabled(!state.canSync)
                 Button("Sync colours") { state.run(dryRun: false) }
                     .keyboardShortcut(.defaultAction)
-                    .disabled(!state.canSync || state.rekordboxIsRunning)
+                    .disabled(!state.canSync)
                 if state.isRunning {
                     Button("Cancel") { state.cancel() }
                     ProgressView(value: state.progress)
@@ -151,7 +157,7 @@ struct ContentView: View {
                 Text(state.statusLine).font(.caption).foregroundStyle(.secondary)
             }
             if state.rekordboxIsRunning {
-                Text("Quit Rekordbox to enable syncing. A dry run is always safe.")
+                Text("Quit Rekordbox completely to run a dry run or a sync.")
                     .font(.caption)
                     .foregroundStyle(.orange)
             }
@@ -190,11 +196,73 @@ struct ContentView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 }
-                changesTable(result.changes)
+
+                Picker("", selection: $resultsTab) {
+                    ForEach(ResultsTab.allCases, id: \.self) { tab in
+                        let count = tab == .changes
+                            ? (result.dryRun ? result.summary.changes : result.applied)
+                            : result.summary.unmatched
+                        Text("\(tab.rawValue) (\(count.formatted()))").tag(tab)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+
+                switch resultsTab {
+                case .changes:
+                    changesTable(result.changes)
+                case .unmatched:
+                    unmatchedView(result)
+                }
             }
         } else {
             Spacer()
         }
+    }
+
+    @ViewBuilder
+    private func unmatchedView(_ result: SyncResult) -> some View {
+        if result.unmatched.isEmpty {
+            VStack(alignment: .leading, spacing: 6) {
+                Label("Every Spectro row was found in your collection.", systemImage: "checkmark.circle")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                Spacer()
+            }
+            .frame(minHeight: 200, alignment: .topLeading)
+        } else {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("These files are in the Spectro CSV but not in the Rekordbox collection. They were left untouched.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Table(result.unmatched) {
+                    TableColumn("") { row in
+                        Text(Verdict(rawValue: row.verdict)?.symbol ?? "•")
+                    }
+                    .width(24)
+                    TableColumn("File") { Text(($0.path as NSString).lastPathComponent) }
+                    TableColumn("Path") { Text($0.path).foregroundStyle(.secondary) }
+                }
+                .frame(minHeight: 180)
+                Button("Export list…") { exportUnmatched(result.unmatched) }
+                    .controlSize(.small)
+            }
+        }
+    }
+
+    private func exportUnmatched(_ rows: [UnmatchedRow]) {
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [UTType.commaSeparatedText]
+        panel.nameFieldStringValue = "spectro-unmatched.csv"
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        var text = "verdict,filename,path\n"
+        for row in rows {
+            let path = row.path.replacingOccurrences(of: "\"", with: "\"\"")
+            let name = (row.path as NSString).lastPathComponent
+                .replacingOccurrences(of: "\"", with: "\"\"")
+            text += "\(row.verdict),\"\(name)\",\"\(path)\"\n"
+        }
+        try? text.write(to: url, atomically: true, encoding: .utf8)
     }
 
     private func statTile(_ label: String, _ value: Int) -> some View {
