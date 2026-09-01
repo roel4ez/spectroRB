@@ -22,12 +22,19 @@ final class CoreRunner {
             let bundled = resources.appendingPathComponent("python/bin/spectro-rb")
             if FileManager.default.isExecutableFile(atPath: bundled.path) { return bundled }
         }
-        let devPaths = [
+        // Developer fallbacks: a virtualenv next to the checkout, or an installed CLI.
+        var devPaths = [
             FileManager.default.currentDirectoryPath + "/.venv/bin/spectro-rb",
-            NSHomeDirectory() + "/sources/music-filter/spectro-rb-sync/.venv/bin/spectro-rb",
             "/usr/local/bin/spectro-rb",
             "/opt/homebrew/bin/spectro-rb",
         ]
+        // When run from .build/release, walk up to the repo root.
+        let executableDir = Bundle.main.bundleURL.deletingLastPathComponent()
+        var candidate = executableDir
+        for _ in 0..<5 {
+            candidate = candidate.deletingLastPathComponent()
+            devPaths.append(candidate.appendingPathComponent(".venv/bin/spectro-rb").path)
+        }
         for path in devPaths where FileManager.default.isExecutableFile(atPath: path) {
             return URL(fileURLWithPath: path)
         }
