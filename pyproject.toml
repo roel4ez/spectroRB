@@ -1,0 +1,20 @@
+[project]
+name = "spectro-rb"
+version = "0.1.0"
+description = "Sync Spectro audio-quality verdicts into Rekordbox track colours"
+requires-python = ">=3.11"
+dependencies = [
+    "pyrekordbox>=0.4.4",
+    "typer>=0.12",
+    "rich>=13.7",
+]
+
+[project.scripts]
+spectro-rb = "spectro_rb.cli:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]

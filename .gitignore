@@ -1,0 +1,10 @@
+.venv/
+samples/
+__pycache__/
+*.pyc
+.DS_Store
+build/
+dist/
+*.egg-info/
+.build/
+runtime/
