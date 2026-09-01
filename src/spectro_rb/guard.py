@@ -33,8 +33,8 @@ def running_rekordbox_processes() -> list[str]:
     hits = []
     for line in output.splitlines():
         name = line.strip().rsplit("/", 1)[-1]
-        lowered = name.lower()
-        if any(hint.lower() in lowered for hint in REKORDBOX_PROCESS_HINTS):
+        # Prefix match, so unrelated tools with "rekordbox" in the name don't trip it.
+        if name.lower().startswith("rekordbox"):
             hits.append(name)
     return hits
 

@@ -4,16 +4,24 @@ import Foundation
 /// One-shot check for a running Rekordbox. Cheap and synchronous, so it can be
 /// run at the moment the user asks for a sync.
 enum RekordboxProbe {
-    private static let hints = ["rekordbox", "rekordboxagent"]
+    /// Matched as a prefix, so this app ("Spectro to Rekordbox") never matches itself.
+    private static func matches(_ value: String) -> Bool {
+        value.lowercased().hasPrefix("rekordbox")
+    }
 
     static func runningProcesses() -> [String] {
         var found = Set<String>()
+        let selfPID = ProcessInfo.processInfo.processIdentifier
 
-        for app in NSWorkspace.shared.runningApplications {
+        for app in NSWorkspace.shared.runningApplications where app.processIdentifier != selfPID {
             let identifier = (app.bundleIdentifier ?? "").lowercased()
-            let name = (app.localizedName ?? "").lowercased()
-            if hints.contains(where: { identifier.contains($0) || name.contains($0) }) {
-                found.insert(app.localizedName ?? app.bundleIdentifier ?? "rekordbox")
+            let name = app.localizedName ?? ""
+            // e.g. com.pioneerdj.rekordbox / com.alphatheta.rekordbox
+            let identifierMatches = identifier.split(separator: ".").contains(where: {
+                matches(String($0))
+            })
+            if identifierMatches || matches(name) {
+                found.insert(name.isEmpty ? (app.bundleIdentifier ?? "rekordbox") : name)
             }
         }
 
@@ -30,7 +38,7 @@ enum RekordboxProbe {
             let text = String(data: data, encoding: .utf8) ?? ""
             for line in text.split(separator: "\n") {
                 let name = String(line.split(separator: "/").last ?? "")
-                if hints.contains(where: { name.lowercased().contains($0) }) {
+                if matches(name) {
                     found.insert(name)
                 }
             }
