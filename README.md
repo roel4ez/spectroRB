@@ -36,6 +36,30 @@ Dry run — nothing was written.
 | No silent mismatches | Fuzzy matches are dropped when a filename is ambiguous, and reported as unmatched |
 | Rekordbox can't sneak in | The check runs when you press Sync, not when the app opens, and the core re-checks again before writing |
 
+## Scale and verification
+
+Measured against a real 4,273-track Rekordbox 7 collection (~46 MB `master.db`) on
+an Apple silicon Mac:
+
+| Scenario | Result |
+| --- | --- |
+| 4,000-row CSV, dry run | 0.6 s |
+| 10,273-row CSV, dry run | 0.6 s |
+| 4,231 colour changes, real write + commit | 1.0 s |
+
+Matching is index-based rather than a scan per row, so CSV size has very little
+effect on runtime; the collection is read once regardless.
+
+The colour-only guarantee was checked empirically, not just by inspection. A copy
+of the database was taken, the 4,231-track write applied to the copy, and the copy
+then diffed against the untouched original:
+
+- **75 columns compared across all 5,373 content rows — zero differences outside `ColorID`**
+- **All 14,308 cue rows identical**
+
+Ratings, beat grids, comments, play counts, analysis data and playlists were
+unaffected.
+
 ## Colour mapping
 
 | Spectro verdict | Rekordbox colour |
