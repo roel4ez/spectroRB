@@ -136,6 +136,10 @@ struct ContentView: View {
                 .background(.quaternary.opacity(0.5), in: Capsule())
             }
             Spacer()
+            Toggle("Overwrite existing colours", isOn: $state.overwriteExisting)
+                .toggleStyle(.checkbox)
+                .font(.caption)
+                .help("When off, tracks that already have any colour are left exactly as they are.")
         }
     }
 
@@ -180,6 +184,9 @@ struct ContentView: View {
                     statTile(result.dryRun ? "Would change" : "Changed",
                              result.dryRun ? result.summary.changes : result.applied)
                     statTile("Already correct", result.summary.alreadyCorrect)
+                    if result.summary.protected > 0 {
+                        statTile("Kept", result.summary.protected)
+                    }
                     statTile("Unmatched", result.summary.unmatched)
                 }
                 if let backup = result.backup {
@@ -187,6 +194,14 @@ struct ContentView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .textSelection(.enabled)
+                }
+                if result.summary.protected > 0 {
+                    Label(
+                        "\(result.summary.protected.formatted()) tracks kept the colour they already had.",
+                        systemImage: "lock"
+                    )
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                 }
                 if result.summary.overwritesExistingColor > 0 {
                     Label(

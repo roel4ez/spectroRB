@@ -77,10 +77,16 @@ class TrackChange:
     old_color: str
     new_color: str
     match_kind: MatchKind
+    protected: bool = False
+    """True when the track already had a colour and overwriting was disabled."""
 
     @property
     def changed(self) -> bool:
         return str(self.old_color or NO_COLOR) != str(self.new_color)
+
+    @property
+    def writable(self) -> bool:
+        return self.changed and not self.protected
 
     def as_dict(self) -> dict:
         return {
@@ -93,6 +99,7 @@ class TrackChange:
             "new_color": color_label(self.new_color),
             "match_kind": self.match_kind.value,
             "changed": self.changed,
+            "protected": self.protected,
         }
 
 
@@ -107,6 +114,7 @@ class SyncPlan:
     unmatched: list[SpectroRow] = field(default_factory=list)
     ambiguous: list[SpectroRow] = field(default_factory=list)
     skipped_rows: list[tuple[int, str]] = field(default_factory=list)
+    overwrite_existing: bool = True
 
     @property
     def matched(self) -> list[TrackChange]:
@@ -114,7 +122,13 @@ class SyncPlan:
 
     @property
     def pending(self) -> list[TrackChange]:
-        return [c for c in self.changes if c.changed]
+        """Changes that will actually be written."""
+        return [c for c in self.changes if c.writable]
+
+    @property
+    def protected(self) -> list[TrackChange]:
+        """Tracks left alone because they already had a colour."""
+        return [c for c in self.changes if c.protected]
 
     @property
     def recolored(self) -> list[TrackChange]:
@@ -128,8 +142,10 @@ class SyncPlan:
             "verdict_counts": self.verdict_counts,
             "matched": len(self.changes),
             "changes": len(self.pending),
-            "already_correct": len(self.changes) - len(self.pending),
+            "already_correct": len([c for c in self.changes if not c.changed]),
             "overwrites_existing_color": len(self.recolored),
+            "protected": len(self.protected),
+            "overwrite_existing": self.overwrite_existing,
             "unmatched": len(self.unmatched),
             "ambiguous": len(self.ambiguous),
             "skipped_rows": len(self.skipped_rows),

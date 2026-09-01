@@ -70,6 +70,7 @@ final class CoreRunner {
         databaseOverride: URL?,
         dryRun: Bool,
         skipBackup: Bool,
+        overwriteExisting: Bool,
         onEvent: @escaping (CoreEvent) -> Void,
         onFinish: @escaping (Result<Void, Error>) -> Void
     ) {
@@ -81,6 +82,7 @@ final class CoreRunner {
         var arguments = ["sync", csv.path, "--json"]
         if dryRun { arguments.append("--dry-run") }
         if skipBackup { arguments.append("--no-backup") }
+        if !overwriteExisting { arguments.append("--keep-existing-colors") }
         if let database = databaseOverride {
             arguments.append(contentsOf: ["--db", database.path])
         }

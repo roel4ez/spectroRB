@@ -17,6 +17,7 @@ final class AppState: ObservableObject {
     @Published var result: SyncResult?
     @Published var errorMessage: String?
     @Published var lastRunWasDryRun = true
+    @Published var overwriteExisting = true
 
     private let runner = CoreRunner()
 
@@ -79,6 +80,7 @@ final class AppState: ObservableObject {
             databaseOverride: databaseOverride,
             dryRun: dryRun,
             skipBackup: false,
+            overwriteExisting: overwriteExisting,
             onEvent: { [weak self] event in
                 guard let self else { return }
                 switch event {

@@ -22,6 +22,8 @@ struct Summary: Decodable {
     var changes: Int = 0
     var alreadyCorrect: Int = 0
     var overwritesExistingColor: Int = 0
+    var protected: Int = 0
+    var overwriteExisting: Bool = true
     var unmatched: Int = 0
     var ambiguous: Int = 0
     var skippedRows: Int = 0
@@ -34,6 +36,8 @@ struct Summary: Decodable {
         case changes
         case alreadyCorrect = "already_correct"
         case overwritesExistingColor = "overwrites_existing_color"
+        case protected
+        case overwriteExisting = "overwrite_existing"
         case unmatched
         case ambiguous
         case skippedRows = "skipped_rows"

@@ -72,6 +72,10 @@ def _render_result(result: SyncResult, show_changes: int) -> None:
         console.print(
             f" [dim]{len(plan.recolored):,} of those already had a different colour[/dim]"
         )
+    if plan.protected:
+        console.print(
+            f" [dim]{len(plan.protected):,} kept their existing colour (--keep-existing-colors)[/dim]"
+        )
     if plan.unmatched:
         console.print(f" [dim]{len(plan.unmatched):,} CSV rows not in the collection[/dim]")
     if plan.ambiguous:
@@ -129,6 +133,12 @@ def sync_command(
     skip_backup: bool = typer.Option(
         False, "--no-backup", help="Skip the timestamped database backup (not recommended)."
     ),
+    keep_existing: bool = typer.Option(
+        False,
+        "--keep-existing-colors",
+        "--keep-existing-colours",
+        help="Leave tracks that already have a colour untouched.",
+    ),
     json_output: bool = typer.Option(False, "--json", help="Emit newline-delimited JSON events."),
     show: int = typer.Option(0, "--show", help="Print the first N planned changes."),
     json_changes: int = typer.Option(
@@ -146,6 +156,7 @@ def sync_command(
             db_path=db,
             dry_run=dry_run,
             skip_backup=skip_backup,
+            overwrite_existing=not keep_existing,
             progress=emitter,
         )
     except InvalidSpectroCsv as exc:

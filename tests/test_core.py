@@ -173,3 +173,39 @@ def test_report_lists_every_problem_row(tmp_path: Path):
     text = out.read_text(encoding="utf-8")
     assert "not in collection" in text and "/M/g.mp3" in text
     assert "unreadable row" in text
+
+
+def test_keep_existing_colors_protects_coloured_tracks(tmp_path: Path):
+    from spectro_rb.sync import apply_plan, build_plan
+
+    export = _export(
+        tmp_path,
+        '"a.mp3","/M/a.mp3","FAKE"\n'  # already Pink -> protected
+        '"b.mp3","/M/b.mp3","FAKE"\n'  # no colour   -> written
+        '"c.mp3","/M/c.mp3","FAKE"\n',  # already Red -> already correct
+    )
+    coloured = FullTrack("1", "/M/a.mp3", color="1")
+    plain = FullTrack("2", "/M/b.mp3", color="0")
+    correct = FullTrack("3", "/M/c.mp3", color="2")
+    collection = FakeCollection([coloured, plain, correct])
+
+    plan = build_plan(export, collection, overwrite_existing=False)
+    assert [c.content_id for c in plan.pending] == ["2"]
+    assert [c.content_id for c in plan.protected] == ["1"]
+    assert plan.summary()["protected"] == 1
+    assert plan.summary()["already_correct"] == 1
+
+    assert apply_plan(plan, collection) == 1
+    assert coloured.ColorID == "1"  # untouched
+    assert plain.ColorID == "2"
+    assert correct.ColorID == "2"
+
+
+def test_overwrite_is_the_default(tmp_path: Path):
+    from spectro_rb.sync import build_plan
+
+    export = _export(tmp_path, '"a.mp3","/M/a.mp3","FAKE"\n')
+    plan = build_plan(export, FakeCollection([FullTrack("1", "/M/a.mp3", color="1")]))
+    assert len(plan.pending) == 1
+    assert plan.protected == []
+    assert plan.summary()["overwrite_existing"] is True

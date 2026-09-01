@@ -46,6 +46,14 @@ Dry run — nothing was written.
 
 Tracks with no row in the CSV are left completely untouched.
 
+### Existing colours
+
+By default a Spectro verdict wins over whatever colour a track already had. Turn off
+**Overwrite existing colours** in the app (or pass `--keep-existing-colors`) to only colour
+tracks that have no colour yet — useful if you already use colours for something else.
+Either way, tracks that already carry the right colour are reported as *already correct*,
+not as kept.
+
 ## Files the CSV has but Rekordbox doesn't
 
 They are never guessed at. They're counted in the summary, listed under **Not found in Rekordbox**
@@ -93,6 +101,7 @@ python3 -m venv .venv && .venv/bin/pip install -e .
 | `--db PATH` | Use a specific `master.db` instead of auto-detection |
 | `--dry-run`, `-n` | Analyse only; write nothing |
 | `--no-backup` | Skip the backup (not recommended) |
+| `--keep-existing-colors` | Leave tracks that already have a colour untouched |
 | `--json` | Newline-delimited JSON events on stdout |
 | `--show N` | Print the first N planned changes, and the files Rekordbox doesn't have |
 | `--report PATH` | Write every unmatched / ambiguous / unreadable CSV row to a CSV file |

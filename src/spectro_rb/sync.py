@@ -10,7 +10,7 @@ from .backup import Backup, backup_database
 from .discovery import DatabaseCandidate, resolve_database
 from .guard import ensure_rekordbox_closed
 from .matching import TrackIndex
-from .model import DEFAULT_MAPPING, MatchKind, SyncPlan, TrackChange, Verdict
+from .model import DEFAULT_MAPPING, NO_COLOR, MatchKind, SyncPlan, TrackChange, Verdict
 from .rekordbox import RekordboxCollection, open_collection
 from .spectro import SpectroExport, read_spectro_csv
 
@@ -46,6 +46,7 @@ def build_plan(
     collection: RekordboxCollection,
     mapping: dict[Verdict, str] | None = None,
     progress: Progress = _noop,
+    overwrite_existing: bool = True,
 ) -> SyncPlan:
     mapping = mapping or DEFAULT_MAPPING
     tracks = collection.tracks()
@@ -57,6 +58,7 @@ def build_plan(
         csv_rows=len(export.rows),
         verdict_counts=dict(export.verdict_counts),
         skipped_rows=list(export.skipped),
+        overwrite_existing=overwrite_existing,
     )
 
     seen_content: dict[str, TrackChange] = {}
@@ -69,15 +71,22 @@ def build_plan(
                 plan.unmatched.append(row)
             continue
 
+        existing = RekordboxCollection.color_of(track)
+        target = mapping[row.verdict]
         change = TrackChange(
             content_id=str(track.ID),
             title=track.Title or "",
             artist=(track.Artist.Name if getattr(track, "Artist", None) else "") or "",
             path=RekordboxCollection.path_of(track),
             verdict=row.verdict,
-            old_color=RekordboxCollection.color_of(track),
-            new_color=mapping[row.verdict],
+            old_color=existing,
+            new_color=target,
             match_kind=kind,
+            # Only a real conflict counts as protected: a track that already
+            # carries the right colour is "already correct", not "kept".
+            protected=(
+                not overwrite_existing and existing != NO_COLOR and existing != target
+            ),
         )
         # If several CSV rows hit the same track, the worst verdict wins.
         previous = seen_content.get(change.content_id)
@@ -131,6 +140,7 @@ def sync(
     mapping: dict[Verdict, str] | None = None,
     progress: Progress = _noop,
     backup_root: Path | None = None,
+    overwrite_existing: bool = True,
 ) -> SyncResult:
     """Full pipeline: guard, discover, back up, plan, apply."""
     export = read_spectro_csv(csv_path)
@@ -155,7 +165,13 @@ def sync(
         progress("backup_created", backup.as_dict())
 
     with open_collection(database.path) as collection:
-        plan = build_plan(export, collection, mapping=mapping, progress=progress)
+        plan = build_plan(
+            export,
+            collection,
+            mapping=mapping,
+            progress=progress,
+            overwrite_existing=overwrite_existing,
+        )
         applied = 0
         if not dry_run:
             # Re-check: Rekordbox may have been launched while we were reading.
