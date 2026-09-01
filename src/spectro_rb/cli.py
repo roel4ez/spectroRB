@@ -142,7 +142,7 @@ def sync_command(
     json_output: bool = typer.Option(False, "--json", help="Emit newline-delimited JSON events."),
     show: int = typer.Option(0, "--show", help="Print the first N planned changes."),
     json_changes: int = typer.Option(
-        2000, "--json-changes", help="Max number of changes included in the JSON result."
+        10000, "--json-changes", help="Max number of changes included in the JSON result."
     ),
     report: Optional[Path] = typer.Option(
         None, "--report", help="Write unmatched/ambiguous/unreadable CSV rows to this CSV file."

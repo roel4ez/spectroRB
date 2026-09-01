@@ -226,12 +226,27 @@ struct ContentView: View {
                 switch resultsTab {
                 case .changes:
                     changesTable(result.changes)
+                    truncationNote(
+                        shown: result.changes.count,
+                        total: result.dryRun ? result.summary.changes : result.applied
+                    )
                 case .unmatched:
                     unmatchedView(result)
+                    truncationNote(shown: result.unmatched.count, total: result.summary.unmatched)
                 }
             }
         } else {
             Spacer()
+        }
+    }
+
+    /// The core caps how many rows it sends, so never imply the table is complete.
+    @ViewBuilder
+    private func truncationNote(shown: Int, total: Int) -> some View {
+        if total > shown {
+            Text("Showing the first \(shown.formatted()) of \(total.formatted()).")
+                .font(.caption)
+                .foregroundStyle(.secondary)
         }
     }
 
