@@ -63,6 +63,40 @@
 - [ ] Add a `Makefile` or `justfile` wrapping the common commands (`test`, `lint`, `build-app`)
 - [ ] README: add a badge and a note that released builds are unsigned until notarisation is set up
 
+## Write the Spectro metrics into the Rekordbox comment (opt-in)
+
+`confidence_pct` and `cutoff_khz` are already parsed, matched and reported, but they only
+exist outside Rekordbox — in the `--report` CSV and the `--json` stream. Putting them in
+`DjmdContent.Commnt` makes them a sortable, searchable browser column, so a suspect track
+can be judged in the place where the decision actually gets made.
+
+This is the first feature that would write a second field, so it stays off by default.
+
+- [ ] `--annotate` / **Write quality notes to comments** toggle; without it, behaviour is
+      byte-for-byte what it is today (`ColorID` only)
+- [ ] Append a delimited block to the existing comment rather than replacing it, e.g.
+      `whatever the user wrote [SPX FAKE 78% 16.1kHz]`, with `trusted` shown as
+      `[SPX FAKE 100% 19.9kHz trusted]`
+- [ ] Idempotent: re-syncing must rewrite the block in place, never stack a second one.
+      Match on the `[SPX …]` delimiter and treat everything outside it as untouchable
+- [ ] `--strip-annotations` to remove every block the tool ever wrote, so the feature is
+      fully reversible without restoring a backup
+- [ ] Decide what happens to a track whose CSV row disappears — leave the stale block, or
+      clear it? (Leaning towards leaving it; absence of a row already means "untouched")
+- [ ] Extend the empirical diff check in the README the same way `ColorID` was verified:
+      apply to a copy, diff all 75 columns, prove only `Commnt` and `ColorID` moved
+- [ ] Update the safety table in the README — the "colour only" guarantee becomes
+      "colour only, unless you explicitly ask for comments"
+
+Rejected alternatives, recorded so they don't get re-proposed:
+
+- **Rekordbox MyTags** (`DjmdMyTag` + `DjmdSongMyTag`) would give real filter checkboxes,
+  which is the nicest UX by some distance — but it needs a tag tree created up front and
+  pyrekordbox's write support there is thin. Revisit once the comment path is proven.
+- **File tags** (ID3 `TXXX` / Vorbis comments) are durable and portable, but Rekordbox
+  won't show them without a *Reload Tags*, which clobbers other rekordbox-side metadata.
+  Wrong trade for a field that exists to be glanced at in the browser.
+
 ## Product ideas (vnext)
 
 - [ ] Remember the last CSV and the overwrite preference between launches
