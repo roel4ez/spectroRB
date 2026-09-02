@@ -135,6 +135,19 @@ struct ContentView: View {
                 .padding(.vertical, 6)
                 .background(.quaternary.opacity(0.5), in: Capsule())
             }
+            if let trusted = state.result?.summary.trustedOverrides, trusted > 0 {
+                HStack(spacing: 6) {
+                    Text("🟠")
+                    Text("FAKE + trusted").font(.caption).bold()
+                    Image(systemName: "arrow.right").font(.caption2).foregroundStyle(.secondary)
+                    Text("Orange").font(.caption).foregroundStyle(.secondary)
+                    Text("(\(trusted.formatted()))").font(.caption).foregroundStyle(.tertiary)
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(.quaternary.opacity(0.5), in: Capsule())
+                .help("Tracks you marked trusted in Spectro are flagged as suspect rather than fake.")
+            }
             Spacer()
             Toggle("Overwrite existing colours", isOn: $state.overwriteExisting)
                 .toggleStyle(.checkbox)
@@ -308,17 +321,35 @@ struct ContentView: View {
     private func changesTable(_ changes: [TrackChange]) -> some View {
         Table(changes) {
             TableColumn("") { change in
-                Text(Verdict(rawValue: change.verdict)?.symbol ?? "•")
+                Text(change.trusted && change.verdict == "FAKE" ? "🟠" : (Verdict(rawValue: change.verdict)?.symbol ?? "•"))
+                    .help(change.trusted ? "Marked trusted in Spectro" : "")
             }
             .width(24)
             TableColumn("Artist") { Text($0.artist) }
             TableColumn("Title") { Text($0.title) }
+            TableColumn("Quality") { change in
+                Text(qualityDetail(change)).font(.caption).foregroundStyle(.secondary)
+            }
             TableColumn("Colour") { change in
                 Text("\(change.oldColor) → \(change.newColor)").monospacedDigit()
             }
             TableColumn("Match") { Text($0.matchKind.replacingOccurrences(of: "_", with: " ")) }
         }
         .frame(minHeight: 200)
+    }
+
+    private func qualityDetail(_ change: TrackChange) -> String {
+        var parts: [String] = []
+        if let confidence = change.confidencePct {
+            parts.append("\(Int(confidence.rounded()))%")
+        }
+        if let cutoff = change.cutoffKhz {
+            parts.append(String(format: "%.1f kHz", cutoff))
+        }
+        if change.trusted {
+            parts.append("trusted")
+        }
+        return parts.joined(separator: " · ")
     }
 
     private func chooseCSV() {

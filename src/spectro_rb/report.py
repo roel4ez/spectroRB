@@ -15,11 +15,26 @@ def write_report(plan: SyncPlan, path: str | Path) -> Path:
 
     with path.open("w", newline="", encoding="utf-8") as fh:
         writer = csv.writer(fh)
-        writer.writerow(["reason", "csv_line", "verdict", "filename", "path"])
+        writer.writerow(
+            ["reason", "csv_line", "verdict", "trusted", "confidence_pct", "cutoff_khz", "filename", "path"]
+        )
+
+        def _row(reason: str, row) -> list:
+            return [
+                reason,
+                row.line,
+                row.verdict.value,
+                "yes" if row.trusted else "no",
+                "" if row.confidence_pct is None else row.confidence_pct,
+                "" if row.cutoff_khz is None else row.cutoff_khz,
+                row.filename,
+                row.path,
+            ]
+
         for row in plan.unmatched:
-            writer.writerow(["not in collection", row.line, row.verdict.value, row.filename, row.path])
+            writer.writerow(_row("not in collection", row))
         for row in plan.ambiguous:
-            writer.writerow(["ambiguous filename", row.line, row.verdict.value, row.filename, row.path])
+            writer.writerow(_row("ambiguous filename", row))
         for line, reason in plan.skipped_rows:
-            writer.writerow([f"unreadable row: {reason}", line, "", "", ""])
+            writer.writerow([f"unreadable row: {reason}", line, "", "", "", "", "", ""])
     return path

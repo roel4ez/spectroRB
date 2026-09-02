@@ -12,6 +12,25 @@ from .model import SpectroRow, Verdict
 PATH_COLUMNS = ("path", "file", "filepath", "file_path", "full_path", "location")
 VERDICT_COLUMNS = ("verdict", "result", "status")
 NAME_COLUMNS = ("filename", "name", "file_name")
+TRUSTED_COLUMNS = ("trusted", "trust", "is_trusted")
+CONFIDENCE_COLUMNS = ("confidence_pct", "confidence", "confidence_percent")
+CUTOFF_COLUMNS = ("cutoff_khz", "cutoff", "cutoff_frequency_khz")
+
+TRUE_VALUES = {"yes", "y", "true", "1", "t"}
+
+
+def parse_bool(raw: str | None) -> bool:
+    return (raw or "").strip().casefold() in TRUE_VALUES
+
+
+def parse_number(raw: str | None) -> float | None:
+    value = (raw or "").strip().rstrip("%")
+    if not value:
+        return None
+    try:
+        return float(value)
+    except ValueError:
+        return None
 
 
 class InvalidSpectroCsv(ValueError):
@@ -24,6 +43,7 @@ class SpectroExport:
     skipped: list[tuple[int, str]]
     verdict_counts: dict[str, int]
     source: Path
+    trusted_count: int = 0
 
     @property
     def total_rows(self) -> int:
@@ -54,6 +74,9 @@ def read_spectro_csv(path: str | Path) -> SpectroExport:
         path_col = _pick(reader.fieldnames, PATH_COLUMNS)
         verdict_col = _pick(reader.fieldnames, VERDICT_COLUMNS)
         name_col = _pick(reader.fieldnames, NAME_COLUMNS)
+        trusted_col = _pick(reader.fieldnames, TRUSTED_COLUMNS)
+        confidence_col = _pick(reader.fieldnames, CONFIDENCE_COLUMNS)
+        cutoff_col = _pick(reader.fieldnames, CUTOFF_COLUMNS)
         if not path_col or not verdict_col:
             raise InvalidSpectroCsv(
                 f"{path.name} does not look like a Spectro export "
@@ -78,6 +101,9 @@ def read_spectro_csv(path: str | Path) -> SpectroExport:
                     verdict=verdict,
                     raw_verdict=raw_verdict,
                     line=line,
+                    trusted=parse_bool(raw.get(trusted_col)) if trusted_col else False,
+                    confidence_pct=parse_number(raw.get(confidence_col)) if confidence_col else None,
+                    cutoff_khz=parse_number(raw.get(cutoff_col)) if cutoff_col else None,
                 )
             )
 
@@ -87,4 +113,5 @@ def read_spectro_csv(path: str | Path) -> SpectroExport:
         skipped=skipped,
         verdict_counts={v.value: counts.get(v.value, 0) for v in Verdict},
         source=path,
+        trusted_count=sum(1 for row in rows if row.trusted),
     )
