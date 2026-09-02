@@ -1,0 +1,67 @@
+name: Build app
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-app-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: SpectroRB.app
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Read runtime pins from build_app.sh
+        id: pins
+        run: |
+          pbs_tag=$(sed -n 's/^PBS_TAG="\${PBS_TAG:-\(.*\)}"$/\1/p' scripts/build_app.sh)
+          py_version=$(sed -n 's/^PY_VERSION="\${PY_VERSION:-\(.*\)}"$/\1/p' scripts/build_app.sh)
+          if [ -z "$pbs_tag" ] || [ -z "$py_version" ]; then
+            echo "::error::Could not read PBS_TAG / PY_VERSION from scripts/build_app.sh"
+            exit 1
+          fi
+          echo "pbs-tag=$pbs_tag" >> "$GITHUB_OUTPUT"
+          echo "py-version=$py_version" >> "$GITHUB_OUTPUT"
+
+      - name: Cache the standalone Python tarball
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: build/cache
+          key: pbs-${{ runner.os }}-${{ runner.arch }}-${{ steps.pins.outputs.pbs-tag }}-${{ steps.pins.outputs.py-version }}
+
+      - name: Build the bundle
+        run: ./scripts/build_app.sh
+
+      - name: Smoke test the built bundle
+        run: |
+          # No Rekordbox on the runner, so doctor must succeed and report no database.
+          out=$(dist/SpectroRB.app/Contents/Resources/python/bin/spectro-rb doctor --json)
+          echo "$out"
+          python3 - "$out" <<'PY'
+          import json, sys
+          data = json.loads(sys.argv[1])
+          assert data["databases"] == [], f"expected no database on the runner, got {data['databases']}"
+          assert data["rekordbox_processes"] == [], "expected no Rekordbox process on the runner"
+          print("doctor OK, version", data["version"])
+          PY
+
+      - name: Zip the bundle
+        run: |
+          # ditto preserves the bundle structure and resource forks; plain zip does not.
+          ditto -c -k --keepParent dist/SpectroRB.app dist/SpectroRB.zip
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: SpectroRB-${{ runner.arch }}-${{ github.sha }}
+          path: dist/SpectroRB.zip
+          # The artifact is ~129 MB and this runs on every push to main.
+          retention-days: 7
+          if-no-files-found: error

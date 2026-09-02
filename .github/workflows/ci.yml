@@ -1,0 +1,104 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  python:
+    name: Python ${{ matrix.python-version }}
+    # The suite is hermetic — no Rekordbox, no database — so it does not need macOS.
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+
+      - name: Ruff (lint)
+        run: ruff check --output-format=github .
+
+      - name: Ruff (format)
+        run: ruff format --check .
+
+      - name: Mypy
+        run: mypy
+
+      - name: Pytest
+        run: pytest -q
+
+  swift:
+    name: Swift app
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Cache SwiftPM build
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: app/.build
+          key: swiftpm-${{ runner.os }}-${{ hashFiles('app/Package.swift') }}-${{ hashFiles('app/Sources/**/*.swift') }}
+          restore-keys: |
+            swiftpm-${{ runner.os }}-${{ hashFiles('app/Package.swift') }}-
+            swiftpm-${{ runner.os }}-
+
+      - name: Build
+        run: swift build -c release
+        working-directory: app
+
+      - name: swift-format lint
+        run: xcrun swift-format lint --strict --recursive Sources
+        working-directory: app
+
+  repo-guard:
+    name: Repo guard rail
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: No personal library data in the repo
+        run: |
+          # samples/, CSV exports, the Rekordbox database and built bundles must stay local.
+          offenders=$(git ls-files -- \
+            'samples/**' 'samples' \
+            '*.csv' \
+            'master.db' '*/master.db' \
+            '*.app/**' '*.app')
+          if [ -n "$offenders" ]; then
+            echo "::error::These files must never be committed:"
+            echo "$offenders"
+            exit 1
+          fi
+          echo "Clean."
+
+  gitleaks:
+    name: Secret scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
