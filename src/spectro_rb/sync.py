@@ -2,15 +2,23 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Iterable
 
 from .backup import Backup, backup_database
 from .discovery import DatabaseCandidate, resolve_database
 from .guard import ensure_rekordbox_closed
 from .matching import TrackIndex
-from .model import DEFAULT_MAPPING, NO_COLOR, MatchKind, SyncPlan, TrackChange, Verdict, resolve_color
+from .model import (
+    DEFAULT_MAPPING,
+    NO_COLOR,
+    MatchKind,
+    SyncPlan,
+    TrackChange,
+    Verdict,
+    resolve_color,
+)
 from .rekordbox import RekordboxCollection, open_collection
 from .spectro import SpectroExport, read_spectro_csv
 
@@ -87,9 +95,7 @@ def build_plan(
             cutoff_khz=row.cutoff_khz,
             # Only a real conflict counts as protected: a track that already
             # carries the right colour is "already correct", not "kept".
-            protected=(
-                not overwrite_existing and existing != NO_COLOR and existing != target
-            ),
+            protected=(not overwrite_existing and existing != NO_COLOR and existing != target),
         )
         # If several CSV rows hit the same track, the worst verdict wins. A
         # trusted FAKE ranks below an untrusted one, so the manual override

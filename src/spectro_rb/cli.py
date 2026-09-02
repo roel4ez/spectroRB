@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 import sys
 from pathlib import Path
-from typing import Optional
 
 import typer
 from rich.console import Console
@@ -79,7 +78,8 @@ def _render_result(result: SyncResult, show_changes: int) -> None:
         )
     if plan.protected:
         console.print(
-            f" [dim]{len(plan.protected):,} kept their existing colour (--keep-existing-colors)[/dim]"
+            f" [dim]{len(plan.protected):,} kept their existing colour"
+            " (--keep-existing-colors)[/dim]"
         )
     if plan.unmatched:
         console.print(f" [dim]{len(plan.unmatched):,} CSV rows not in the collection[/dim]")
@@ -99,8 +99,10 @@ def _render_result(result: SyncResult, show_changes: int) -> None:
             if change.trusted and change.verdict is Verdict.FAKE:
                 icon, style = "🟠", "orange3"
             table.add_row(
-                f"{icon} {change.verdict.value}" + (" [dim](trusted)[/dim]" if change.trusted else ""),
-                f"{color_label(change.old_color)} → [{style}]{color_label(change.new_color)}[/{style}]",
+                f"{icon} {change.verdict.value}"
+                + (" [dim](trusted)[/dim]" if change.trusted else ""),
+                f"{color_label(change.old_color)} → "
+                f"[{style}]{color_label(change.new_color)}[/{style}]",
                 change.artist,
                 change.title,
             )
@@ -131,7 +133,7 @@ def _fail(message: str, code: int = 1) -> None:
 @app.command("sync")
 def sync_command(
     csv: Path = typer.Argument(..., help="Spectro CSV export to read."),
-    db: Optional[Path] = typer.Option(
+    db: Path | None = typer.Option(
         None, "--db", help="Rekordbox master.db (auto-detected when omitted)."
     ),
     dry_run: bool = typer.Option(
@@ -151,7 +153,7 @@ def sync_command(
     json_changes: int = typer.Option(
         10000, "--json-changes", help="Max number of changes included in the JSON result."
     ),
-    report: Optional[Path] = typer.Option(
+    report: Path | None = typer.Option(
         None, "--report", help="Write unmatched/ambiguous/unreadable CSV rows to this CSV file."
     ),
 ) -> None:
@@ -213,7 +215,12 @@ def doctor(json_output: bool = typer.Option(False, "--json")) -> None:
 
     if json_output:
         console.print_json(
-            data={"version": __version__, "databases": databases, "rekordbox_processes": processes, "backups": backups}
+            data={
+                "version": __version__,
+                "databases": databases,
+                "rekordbox_processes": processes,
+                "backups": backups,
+            }
         )
         return
 
@@ -229,8 +236,8 @@ def doctor(json_output: bool = typer.Option(False, "--json")) -> None:
         console.print("[green]Rekordbox is not running.[/green]")
     console.print()
     console.print("Recent backups:" if backups else "No backups yet.")
-    for entry in backups:
-        console.print(f"  {entry}")
+    for backup in backups:
+        console.print(f"  {backup}")
 
 
 def main() -> None:

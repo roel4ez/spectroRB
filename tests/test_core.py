@@ -154,9 +154,7 @@ def test_apply_only_touches_color(tmp_path: Path):
 def test_worst_verdict_wins_for_duplicate_rows(tmp_path: Path):
     from spectro_rb.sync import build_plan
 
-    export = _export(
-        tmp_path, '"a.mp3","/M/a.mp3","LOSSLESS"\n"a.mp3","/M/a.mp3","FAKE"\n'
-    )
+    export = _export(tmp_path, '"a.mp3","/M/a.mp3","LOSSLESS"\n"a.mp3","/M/a.mp3","FAKE"\n')
     collection = FakeCollection([FullTrack("1", "/M/a.mp3")])
     plan = build_plan(export, collection)
     assert len(plan.changes) == 1

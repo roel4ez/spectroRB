@@ -84,25 +84,25 @@ final class AppState: ObservableObject {
             onEvent: { [weak self] event in
                 guard let self else { return }
                 switch event {
-                case let .csvLoaded(rows, _, _):
+                case .csvLoaded(let rows, _, _):
                     self.statusLine = "Read \(rows.formatted()) Spectro rows."
-                case let .databaseFound(path, _, _):
+                case .databaseFound(let path, _, _):
                     self.statusLine = "Using \((path as NSString).lastPathComponent)…"
-                case let .backupCreated(directory, _):
+                case .backupCreated(let directory, _):
                     self.statusLine = "Backed up to \((directory as NSString).lastPathComponent)."
-                case let .collectionLoaded(tracks):
+                case .collectionLoaded(let tracks):
                     self.statusLine = "Scanned \(tracks.formatted()) Rekordbox tracks."
-                case let .planReady(summary):
+                case .planReady(let summary):
                     self.statusLine = "\(summary.changes.formatted()) colour changes planned."
-                case let .applying(applied, total):
+                case .applying(let applied, let total):
                     self.progress = total > 0 ? Double(applied) / Double(total) : nil
                     self.statusLine = "Writing \(applied.formatted()) of \(total.formatted())…"
-                case let .applied(applied):
+                case .applied(let applied):
                     self.progress = 1
                     self.statusLine = "Wrote \(applied.formatted()) colours."
-                case let .result(result):
+                case .result(let result):
                     self.result = result
-                case let .failure(_, message):
+                case .failure(_, let message):
                     self.errorMessage = message
                 case .unknown:
                     break
@@ -117,7 +117,7 @@ final class AppState: ObservableObject {
                     if self.errorMessage == nil {
                         self.statusLine = dryRun ? "Dry run complete — nothing written." : "Done."
                     }
-                case let .failure(error):
+                case .failure(let error):
                     if self.errorMessage == nil {
                         self.errorMessage = error.localizedDescription
                     }

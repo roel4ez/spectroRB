@@ -16,7 +16,16 @@ def write_report(plan: SyncPlan, path: str | Path) -> Path:
     with path.open("w", newline="", encoding="utf-8") as fh:
         writer = csv.writer(fh)
         writer.writerow(
-            ["reason", "csv_line", "verdict", "trusted", "confidence_pct", "cutoff_khz", "filename", "path"]
+            [
+                "reason",
+                "csv_line",
+                "verdict",
+                "trusted",
+                "confidence_pct",
+                "cutoff_khz",
+                "filename",
+                "path",
+            ]
         )
 
         def _row(reason: str, row) -> list:

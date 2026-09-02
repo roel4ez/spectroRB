@@ -12,7 +12,7 @@ class Verdict(str, Enum):
     FAKE = "FAKE"
 
     @classmethod
-    def parse(cls, raw: str) -> "Verdict | None":
+    def parse(cls, raw: str) -> Verdict | None:
         try:
             return cls(raw.strip().upper())
         except ValueError:

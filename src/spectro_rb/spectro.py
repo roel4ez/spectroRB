@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import csv
 from collections import Counter
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -50,7 +51,7 @@ class SpectroExport:
         return len(self.rows) + len(self.skipped)
 
 
-def _pick(fieldnames: list[str], options: tuple[str, ...]) -> str | None:
+def _pick(fieldnames: Sequence[str], options: tuple[str, ...]) -> str | None:
     lookup = {name.strip().lower(): name for name in fieldnames if name}
     for option in options:
         if option in lookup:
@@ -96,13 +97,17 @@ def read_spectro_csv(path: str | Path) -> SpectroExport:
                 continue
             rows.append(
                 SpectroRow(
-                    filename=(raw.get(name_col) or "").strip() if name_col else Path(file_path).name,
+                    filename=(raw.get(name_col) or "").strip()
+                    if name_col
+                    else Path(file_path).name,
                     path=file_path,
                     verdict=verdict,
                     raw_verdict=raw_verdict,
                     line=line,
                     trusted=parse_bool(raw.get(trusted_col)) if trusted_col else False,
-                    confidence_pct=parse_number(raw.get(confidence_col)) if confidence_col else None,
+                    confidence_pct=parse_number(raw.get(confidence_col))
+                    if confidence_col
+                    else None,
                     cutoff_khz=parse_number(raw.get(cutoff_col)) if cutoff_col else None,
                 )
             )

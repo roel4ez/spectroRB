@@ -12,8 +12,7 @@ class RekordboxRunning(RuntimeError):
         self.processes = processes
         joined = ", ".join(sorted(set(processes)))
         super().__init__(
-            f"Rekordbox appears to be running ({joined}). "
-            "Quit Rekordbox completely before syncing."
+            f"Rekordbox appears to be running ({joined}). Quit Rekordbox completely before syncing."
         )
 
 
