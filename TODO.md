@@ -81,8 +81,11 @@ This is the first feature that would write a second field, so it stays off by de
       Match on the `[SPX …]` delimiter and treat everything outside it as untouchable
 - [ ] `--strip-annotations` to remove every block the tool ever wrote, so the feature is
       fully reversible without restoring a backup
-- [ ] Decide what happens to a track whose CSV row disappears — leave the stale block, or
-      clear it? (Leaning towards leaving it; absence of a row already means "untouched")
+- [ ] A track with no row in the CSV is never touched — no stale-block cleanup, no sweep.
+      Exports are typically incremental (only newly added tracks get run through Spectro),
+      so "absent from the CSV" means "not analysed this time", never "no longer suspect".
+      This matches how `ColorID` already behaves; `--strip-annotations` is the only way a
+      block is ever removed.
 - [ ] Extend the empirical diff check in the README the same way `ColorID` was verified:
       apply to a copy, diff all 75 columns, prove only `Commnt` and `ColorID` moved
 - [ ] Update the safety table in the README — the "colour only" guarantee becomes
