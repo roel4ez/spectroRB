@@ -9,6 +9,13 @@ dependencies = [
     "rich>=13.7",
 ]
 
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.14",
+    "mypy>=1.13",
+]
+
 [project.scripts]
 spectro-rb = "spectro_rb.cli:main"
 
@@ -18,3 +25,28 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "C4"]
+# UP042: `str, Enum` is kept over `StrEnum` on purpose — `str()` on a StrEnum member
+# returns the bare value, which would silently change the CSV and JSON output.
+ignore = ["UP042"]
+
+[tool.ruff.lint.per-file-ignores]
+# B008: `typer.Option(...)` / `typer.Argument(...)` in defaults is how Typer is written.
+"src/spectro_rb/cli.py" = ["B008"]
+
+[tool.mypy]
+python_version = "3.11"
+files = ["src/spectro_rb"]
+ignore_missing_imports = true
+warn_unused_ignores = true
+warn_redundant_casts = true

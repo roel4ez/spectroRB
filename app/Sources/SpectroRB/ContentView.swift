@@ -194,8 +194,9 @@ struct ContentView: View {
                 HStack(spacing: 14) {
                     statTile("Tracks", result.summary.collectionSize)
                     statTile("Matched", result.summary.matched)
-                    statTile(result.dryRun ? "Would change" : "Changed",
-                             result.dryRun ? result.summary.changes : result.applied)
+                    statTile(
+                        result.dryRun ? "Would change" : "Changed",
+                        result.dryRun ? result.summary.changes : result.applied)
                     statTile("Already correct", result.summary.alreadyCorrect)
                     if result.summary.protected > 0 {
                         statTile("Kept", result.summary.protected)
@@ -227,7 +228,8 @@ struct ContentView: View {
 
                 Picker("", selection: $resultsTab) {
                     ForEach(ResultsTab.allCases, id: \.self) { tab in
-                        let count = tab == .changes
+                        let count =
+                            tab == .changes
                             ? (result.dryRun ? result.summary.changes : result.applied)
                             : result.summary.unmatched
                         Text("\(tab.rawValue) (\(count.formatted()))").tag(tab)
@@ -275,9 +277,11 @@ struct ContentView: View {
             .frame(minHeight: 200, alignment: .topLeading)
         } else {
             VStack(alignment: .leading, spacing: 6) {
-                Text("These files are in the Spectro CSV but not in the Rekordbox collection. They were left untouched.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                Text(
+                    "These files are in the Spectro CSV but not in the Rekordbox collection. They were left untouched."
+                )
+                .font(.caption)
+                .foregroundStyle(.secondary)
                 Table(result.unmatched) {
                     TableColumn("") { row in
                         Text(Verdict(rawValue: row.verdict)?.symbol ?? "•")
@@ -321,8 +325,11 @@ struct ContentView: View {
     private func changesTable(_ changes: [TrackChange]) -> some View {
         Table(changes) {
             TableColumn("") { change in
-                Text(change.trusted && change.verdict == "FAKE" ? "🟠" : (Verdict(rawValue: change.verdict)?.symbol ?? "•"))
-                    .help(change.trusted ? "Marked trusted in Spectro" : "")
+                Text(
+                    change.trusted && change.verdict == "FAKE"
+                        ? "🟠" : (Verdict(rawValue: change.verdict)?.symbol ?? "•")
+                )
+                .help(change.trusted ? "Marked trusted in Spectro" : "")
             }
             .width(24)
             TableColumn("Artist") { Text($0.artist) }

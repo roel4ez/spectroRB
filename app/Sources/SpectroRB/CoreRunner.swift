@@ -10,7 +10,7 @@ final class CoreRunner {
             switch self {
             case .executableMissing:
                 return "The bundled spectro-rb core is missing from the app bundle."
-            case let .failed(code, message):
+            case .failed(let code, let message):
                 return message.isEmpty ? "The sync process failed (exit code \(code))." : message
             }
         }
@@ -128,7 +128,8 @@ final class CoreRunner {
                 if proc.terminationStatus == 0 {
                     onFinish(.success(()))
                 } else {
-                    let message = stderrText
+                    let message =
+                        stderrText
                         .replacingOccurrences(of: "Error: ", with: "")
                         .trimmingCharacters(in: .whitespacesAndNewlines)
                     onFinish(.failure(RunnerError.failed(code: proc.terminationStatus, message: message)))

@@ -39,9 +39,7 @@ def backup_database(db_path: Path, root: Path | None = None) -> Backup:
     directory.mkdir(parents=True, exist_ok=True)
 
     copied: list[Path] = []
-    sources = [db_path] + [
-        db_path.with_name(db_path.name + suffix) for suffix in SIDECAR_SUFFIXES
-    ]
+    sources = [db_path] + [db_path.with_name(db_path.name + suffix) for suffix in SIDECAR_SUFFIXES]
     for source in sources:
         if not source.is_file():
             continue

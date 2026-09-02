@@ -56,7 +56,7 @@ class TrackIndex:
     size: int = 0
 
     @classmethod
-    def build(cls, tracks, path_of) -> "TrackIndex":
+    def build(cls, tracks, path_of) -> TrackIndex:
         index = cls()
         for track in tracks:
             raw = path_of(track)

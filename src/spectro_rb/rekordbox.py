@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 from pathlib import Path
 
 from .model import NO_COLOR
@@ -50,10 +50,8 @@ class RekordboxCollection:
             raise RekordboxError(f"Could not save changes to Rekordbox: {exc}") from exc
 
     def rollback(self) -> None:
-        try:
+        with suppress(Exception):
             self._db.rollback()
-        except Exception:
-            pass
 
 
 @contextmanager
@@ -76,7 +74,5 @@ def open_collection(db_path: str | Path, unlock: bool = True):
     try:
         yield collection
     finally:
-        try:
+        with suppress(Exception):
             db.close()
-        except Exception:
-            pass
