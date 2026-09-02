@@ -10,7 +10,7 @@ from .backup import Backup, backup_database
 from .discovery import DatabaseCandidate, resolve_database
 from .guard import ensure_rekordbox_closed
 from .matching import TrackIndex
-from .model import DEFAULT_MAPPING, NO_COLOR, MatchKind, SyncPlan, TrackChange, Verdict
+from .model import DEFAULT_MAPPING, NO_COLOR, MatchKind, SyncPlan, TrackChange, Verdict, resolve_color
 from .rekordbox import RekordboxCollection, open_collection
 from .spectro import SpectroExport, read_spectro_csv
 
@@ -72,7 +72,7 @@ def build_plan(
             continue
 
         existing = RekordboxCollection.color_of(track)
-        target = mapping[row.verdict]
+        target = resolve_color(row.verdict, row.trusted, mapping)
         change = TrackChange(
             content_id=str(track.ID),
             title=track.Title or "",
@@ -82,17 +82,24 @@ def build_plan(
             old_color=existing,
             new_color=target,
             match_kind=kind,
+            trusted=row.trusted,
+            confidence_pct=row.confidence_pct,
+            cutoff_khz=row.cutoff_khz,
             # Only a real conflict counts as protected: a track that already
             # carries the right colour is "already correct", not "kept".
             protected=(
                 not overwrite_existing and existing != NO_COLOR and existing != target
             ),
         )
-        # If several CSV rows hit the same track, the worst verdict wins.
+        # If several CSV rows hit the same track, the worst verdict wins. A
+        # trusted FAKE ranks below an untrusted one, so the manual override
+        # never gets promoted back to red by a duplicate row.
         previous = seen_content.get(change.content_id)
         if previous is not None:
             severity = {Verdict.LOSSLESS: 0, Verdict.MEDIUM: 1, Verdict.FAKE: 2}
-            if severity[row.verdict] <= severity[previous.verdict]:
+            new_rank = (severity[change.verdict], 0 if change.trusted else 1)
+            old_rank = (severity[previous.verdict], 0 if previous.trusted else 1)
+            if new_rank <= old_rank:
                 continue
             plan.changes.remove(previous)
         seen_content[change.content_id] = change
@@ -151,6 +158,7 @@ def sync(
             "rows": len(export.rows),
             "skipped": len(export.skipped),
             "verdict_counts": export.verdict_counts,
+            "trusted": export.trusted_count,
         },
     )
 

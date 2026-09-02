@@ -61,6 +61,11 @@ def _render_result(result: SyncResult, show_changes: int) -> None:
         icon, style = VERDICT_STYLE[verdict]
         count = plan.verdict_counts.get(verdict.value, 0)
         console.print(f" {icon} [{style}]{verdict.value}[/{style}] {count:,}")
+    if plan.trusted_overrides:
+        console.print(
+            f" [dim]🟠 {len(plan.trusted_overrides):,} FAKE marked trusted in Spectro "
+            f"→ Orange instead of Red[/dim]"
+        )
     console.print()
 
     verb = "Would update" if result.dry_run else "Updating"
@@ -91,8 +96,10 @@ def _render_result(result: SyncResult, show_changes: int) -> None:
         table.add_column("Title", overflow="ellipsis", max_width=38)
         for change in plan.pending[:show_changes]:
             icon, style = VERDICT_STYLE[change.verdict]
+            if change.trusted and change.verdict is Verdict.FAKE:
+                icon, style = "🟠", "orange3"
             table.add_row(
-                f"{icon} {change.verdict.value}",
+                f"{icon} {change.verdict.value}" + (" [dim](trusted)[/dim]" if change.trusted else ""),
                 f"{color_label(change.old_color)} → [{style}]{color_label(change.new_color)}[/{style}]",
                 change.artist,
                 change.title,

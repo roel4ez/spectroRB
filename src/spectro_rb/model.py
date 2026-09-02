@@ -39,11 +39,29 @@ DEFAULT_MAPPING: dict[Verdict, str] = {
     Verdict.FAKE: COLOR_IDS["RED"],
 }
 
+# `trusted` is a manual flag set by hand in Spectro: "I have listened to this and
+# I accept it". It only ever softens a FAKE verdict — an old, badly mastered or
+# clipped track gets flagged as suspect rather than condemned outright.
+TRUSTED_FAKE_COLOR: str = COLOR_IDS["ORANGE"]
+
 
 def color_label(color_id: str | None) -> str:
     if not color_id or str(color_id) == NO_COLOR:
         return "None"
     return COLOR_NAMES.get(str(color_id), f"#{color_id}")
+
+
+def resolve_color(
+    verdict: Verdict,
+    trusted: bool = False,
+    mapping: dict[Verdict, str] | None = None,
+    trusted_fake_color: str = TRUSTED_FAKE_COLOR,
+) -> str:
+    """Colour for a verdict, applying the manual ``trusted`` override."""
+    mapping = mapping or DEFAULT_MAPPING
+    if trusted and verdict is Verdict.FAKE:
+        return trusted_fake_color
+    return mapping[verdict]
 
 
 @dataclass(slots=True)
@@ -55,6 +73,11 @@ class SpectroRow:
     verdict: Verdict
     raw_verdict: str
     line: int
+    trusted: bool = False
+    """Manual "I have checked this and I accept it" flag, set inside Spectro."""
+
+    confidence_pct: float | None = None
+    cutoff_khz: float | None = None
 
 
 class MatchKind(str, Enum):
@@ -77,6 +100,9 @@ class TrackChange:
     old_color: str
     new_color: str
     match_kind: MatchKind
+    trusted: bool = False
+    confidence_pct: float | None = None
+    cutoff_khz: float | None = None
     protected: bool = False
     """True when the track already had a colour and overwriting was disabled."""
 
@@ -95,6 +121,9 @@ class TrackChange:
             "artist": self.artist,
             "path": self.path,
             "verdict": self.verdict.value,
+            "trusted": self.trusted,
+            "confidence_pct": self.confidence_pct,
+            "cutoff_khz": self.cutoff_khz,
             "old_color": color_label(self.old_color),
             "new_color": color_label(self.new_color),
             "match_kind": self.match_kind.value,
@@ -135,11 +164,17 @@ class SyncPlan:
         """Changes that overwrite an existing, different colour."""
         return [c for c in self.pending if str(c.old_color or NO_COLOR) != NO_COLOR]
 
+    @property
+    def trusted_overrides(self) -> list[TrackChange]:
+        """FAKE tracks spared the red treatment by the manual trusted flag."""
+        return [c for c in self.changes if c.trusted and c.verdict is Verdict.FAKE]
+
     def summary(self) -> dict:
         return {
             "collection_size": self.collection_size,
             "csv_rows": self.csv_rows,
             "verdict_counts": self.verdict_counts,
+            "trusted_overrides": len(self.trusted_overrides),
             "matched": len(self.changes),
             "changes": len(self.pending),
             "already_correct": len([c for c in self.changes if not c.changed]),

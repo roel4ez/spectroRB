@@ -67,8 +67,30 @@ unaffected.
 | 🟢 `LOSSLESS` | Green |
 | 🟡 `MEDIUM` | Yellow |
 | 🔴 `FAKE` | Red |
+| 🟠 `FAKE` + **trusted** | Orange |
 
 Tracks with no row in the CSV are left completely untouched.
+
+### The `trusted` flag
+
+`trusted` is the flag you set by hand inside Spectro to mean *"I have listened to this
+and I accept it."* It exists because Spectro's spectral analysis can't tell a transcode
+apart from an old, loud or badly mastered original — plenty of genuine 2000s releases are
+clipped and rolled off at 19 kHz, and get reported as 100% `FAKE`.
+
+Ticking **trusted** in Spectro demotes such a track from Red to **Orange**: still visibly
+marked as suspect, but no longer sitting in the same bucket as an actual 128 kbps
+upscale. The flag only ever softens a `FAKE` verdict — it has no effect on `LOSSLESS` or
+`MEDIUM`, and it can never make a track look *better* than Spectro found it.
+
+If several CSV rows point at the same track, the worst verdict still wins, but a trusted
+`FAKE` is never promoted back to Red by a duplicate row.
+
+### `confidence_pct` and `cutoff_khz`
+
+These are read from the CSV and carried through to the `--report` output and the `--json`
+event stream, so you can review the numbers behind a verdict. They are deliberately not
+used to pick a colour: your manual `trusted` flag is the authority, not a threshold.
 
 ### Existing colours
 

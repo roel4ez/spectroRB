@@ -209,3 +209,85 @@ def test_overwrite_is_the_default(tmp_path: Path):
     assert len(plan.pending) == 1
     assert plan.protected == []
     assert plan.summary()["overwrite_existing"] is True
+
+
+def _export_trusted(tmp_path: Path, rows: str):
+    csv_file = tmp_path / "trusted.csv"
+    csv_file.write_text(
+        "filename,path,verdict,confidence_pct,cutoff_khz,trusted\n" + rows, encoding="utf-8"
+    )
+    return read_spectro_csv(csv_file)
+
+
+def test_trusted_and_metrics_are_parsed(tmp_path: Path):
+    export = _export_trusted(
+        tmp_path,
+        '"a.flac","/M/a.flac","FAKE","100","19.9","yes"\n'
+        '"b.flac","/M/b.flac","FAKE","78","16.1","no"\n',
+    )
+    assert [r.trusted for r in export.rows] == [True, False]
+    assert [r.confidence_pct for r in export.rows] == [100.0, 78.0]
+    assert [r.cutoff_khz for r in export.rows] == [19.9, 16.1]
+    assert export.trusted_count == 1
+
+
+def test_trusted_fake_becomes_orange_not_red(tmp_path: Path):
+    from spectro_rb.sync import apply_plan, build_plan
+
+    export = _export_trusted(
+        tmp_path,
+        '"a.flac","/M/a.flac","FAKE","100","19.9","yes"\n'
+        '"b.flac","/M/b.flac","FAKE","78","16.1","no"\n',
+    )
+    trusted = FullTrack("1", "/M/a.flac")
+    untrusted = FullTrack("2", "/M/b.flac")
+    collection = FakeCollection([trusted, untrusted])
+
+    plan = build_plan(export, collection)
+    assert plan.summary()["trusted_overrides"] == 1
+    apply_plan(plan, collection)
+    assert color_label(trusted.ColorID) == "Orange"
+    assert color_label(untrusted.ColorID) == "Red"
+
+
+def test_trusted_does_not_change_lossless_or_medium(tmp_path: Path):
+    from spectro_rb.sync import apply_plan, build_plan
+
+    export = _export_trusted(
+        tmp_path,
+        '"a.flac","/M/a.flac","LOSSLESS","95","22.0","yes"\n'
+        '"b.mp3","/M/b.mp3","MEDIUM","90","16.0","yes"\n',
+    )
+    lossless = FullTrack("1", "/M/a.flac")
+    medium = FullTrack("2", "/M/b.mp3")
+    collection = FakeCollection([lossless, medium])
+
+    plan = build_plan(export, collection)
+    assert plan.summary()["trusted_overrides"] == 0
+    apply_plan(plan, collection)
+    assert color_label(lossless.ColorID) == "Green"
+    assert color_label(medium.ColorID) == "Yellow"
+
+
+def test_duplicate_rows_never_promote_a_trusted_fake_back_to_red(tmp_path: Path):
+    from spectro_rb.sync import build_plan
+
+    export = _export_trusted(
+        tmp_path,
+        '"a.flac","/M/a.flac","FAKE","100","19.9","yes"\n'
+        '"a.flac","/M/a.flac","LOSSLESS","95","22.0","yes"\n',
+    )
+    plan = build_plan(export, FakeCollection([FullTrack("1", "/M/a.flac")]))
+    assert len(plan.changes) == 1
+    assert color_label(plan.changes[0].new_color) == "Orange"
+
+
+def test_report_includes_trusted_and_metrics(tmp_path: Path):
+    from spectro_rb.report import write_report
+    from spectro_rb.sync import build_plan
+
+    export = _export_trusted(tmp_path, '"g.flac","/M/g.flac","FAKE","100","19.9","yes"\n')
+    plan = build_plan(export, FakeCollection([FullTrack("1", "/M/other.flac")]))
+    text = write_report(plan, tmp_path / "r.csv").read_text(encoding="utf-8")
+    assert "trusted,confidence_pct,cutoff_khz" in text
+    assert "yes,100.0,19.9" in text

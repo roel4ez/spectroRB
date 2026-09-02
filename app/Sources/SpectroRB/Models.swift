@@ -24,6 +24,7 @@ struct Summary: Decodable {
     var overwritesExistingColor: Int = 0
     var protected: Int = 0
     var overwriteExisting: Bool = true
+    var trustedOverrides: Int = 0
     var unmatched: Int = 0
     var ambiguous: Int = 0
     var skippedRows: Int = 0
@@ -38,6 +39,7 @@ struct Summary: Decodable {
         case overwritesExistingColor = "overwrites_existing_color"
         case protected
         case overwriteExisting = "overwrite_existing"
+        case trustedOverrides = "trusted_overrides"
         case unmatched
         case ambiguous
         case skippedRows = "skipped_rows"
@@ -70,6 +72,9 @@ struct TrackChange: Decodable, Identifiable {
     let artist: String
     let path: String
     let verdict: String
+    let trusted: Bool
+    let confidencePct: Double?
+    let cutoffKhz: Double?
     let oldColor: String
     let newColor: String
     let matchKind: String
@@ -78,7 +83,9 @@ struct TrackChange: Decodable, Identifiable {
 
     enum CodingKeys: String, CodingKey {
         case contentId = "content_id"
-        case title, artist, path, verdict
+        case title, artist, path, verdict, trusted
+        case confidencePct = "confidence_pct"
+        case cutoffKhz = "cutoff_khz"
         case oldColor = "old_color"
         case newColor = "new_color"
         case matchKind = "match_kind"
