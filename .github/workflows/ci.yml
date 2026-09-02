@@ -82,8 +82,8 @@ jobs:
           offenders=$(git ls-files -- \
             'samples/**' 'samples' \
             '*.csv' \
-            'master.db' '*/master.db' \
-            '*.app/**' '*.app')
+            '**/master.db' \
+            '**/*.app/**' '**/*.app')
           if [ -n "$offenders" ]; then
             echo "::error::These files must never be committed:"
             echo "$offenders"
